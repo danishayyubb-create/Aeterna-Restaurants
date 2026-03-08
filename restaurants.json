@@ -1,0 +1,52 @@
+{
+    "restaurants": [
+        {
+            "id": "d9beb2c2-0eca-4305-8dab-721af942e329",
+            "name": "Aeterna",
+            "theme": "dark",
+            "logo_url": ""
+        },
+        {
+            "id": "58b03127-5a2c-4403-aed2-b3adb814dd51",
+            "name": "Village pizza ",
+            "theme": "White",
+            "logo_url": ""
+        },
+        {
+            "id": "7bd7bfcd-da75-42dd-90eb-9044eee0e0ee",
+            "name": "Aliza kitchen",
+            "theme": "dark",
+            "logo_url": ""
+        },
+        {
+            "id": "cd67ee2e-8fed-4e68-9cac-c97ef93a7dce",
+            "name": "Hamza marque ",
+            "theme": "dark",
+            "logo_url": ""
+        },
+        {
+            "id": "6dcc2f42-aa6b-4640-abce-56ffe64dc9d9",
+            "name": "Tahir",
+            "theme": "dark",
+            "logo_url": ""
+        },
+        {
+            "id": "d8647219-8855-47dd-b96c-1f24af8db31f",
+            "name": "Irfan kings",
+            "theme": "dark",
+            "logo_url": ""
+        },
+        {
+            "id": "6748fbb3-eb5e-48b5-80c4-4c5bcfa98e79",
+            "name": "Bao g ",
+            "theme": "White ",
+            "logo_url": ""
+        },
+        {
+            "id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a",
+            "name": "Asif's Kitchen",
+            "theme": "dark",
+            "logo_url": ""
+        }
+    ]
+}

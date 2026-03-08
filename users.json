@@ -1,0 +1,60 @@
+{
+    "users": [
+        {
+            "username": "Danish",
+            "password_hash": "563424bc2d0e7ecbe9b6a5d31df3fa58531e67d6503ff236e822afa332a76e2e",
+            "salt": "b0d051ff5c5069eced5b4fefb3b44f74",
+            "role": "admin",
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "username": "Hassan",
+            "password_hash": "2fac4bb36300d7102f02230e4b8b099cff73aee7fc89b006a1ca85b19dda2a3d",
+            "salt": "82006cd78b3ec3f1259063da21477eca",
+            "role": "manager",
+            "restaurant_id": "58b03127-5a2c-4403-aed2-b3adb814dd51"
+        },
+        {
+            "username": "Aliza ",
+            "password_hash": "6bf2a2edef32200b353d33036a008d5fab8860bf906f7b1b5da7203718a396b6",
+            "salt": "24aab99e3a5b8e8e8b06cf87d70cbb10",
+            "role": "manager",
+            "restaurant_id": "7bd7bfcd-da75-42dd-90eb-9044eee0e0ee"
+        },
+        {
+            "username": "Ali Khan ",
+            "password_hash": "a401a19a04d55ea76688f64badea5cf16d1348a2d5faa357ebff46803a5c256f",
+            "salt": "6ad326e1044176da6e6dbf6960d34ed3",
+            "role": "manager",
+            "restaurant_id": "cd67ee2e-8fed-4e68-9cac-c97ef93a7dce"
+        },
+        {
+            "username": "Tahir ",
+            "password_hash": "d1362005c5a790c46d70bd9ff07485f280e170a7ec5bb65c52833850b46f9b28",
+            "salt": "bd83112027820a887fea24d814b66dc3",
+            "role": "manager",
+            "restaurant_id": "6dcc2f42-aa6b-4640-abce-56ffe64dc9d9"
+        },
+        {
+            "username": "Irfan",
+            "password_hash": "967b8c2a2b1992236dc2272facfaf812f729c80d74a181f518375ac63dd6361f",
+            "salt": "c903fc59cbe01e9052a7874d8265f9c3",
+            "role": "manager",
+            "restaurant_id": "d8647219-8855-47dd-b96c-1f24af8db31f"
+        },
+        {
+            "username": "Saad ur Rehman",
+            "password_hash": "d27d9ee8e581910d3c46b2643cb94193d3af347e644404cef205bd6ad839d377",
+            "salt": "f99eb6afb908618f41872f26c0016914",
+            "role": "manager",
+            "restaurant_id": "6748fbb3-eb5e-48b5-80c4-4c5bcfa98e79"
+        },
+        {
+            "username": "Asif",
+            "password_hash": "47dadeb96fa29e6da67ef01c637ff1ab404bcd3bf39b378c972aa2959161d625",
+            "salt": "08d51959693c42fa3991c137223366b6",
+            "role": "manager",
+            "restaurant_id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a"
+        }
+    ]
+}

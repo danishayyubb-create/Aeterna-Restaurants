@@ -1,0 +1,108 @@
+{
+    "inventory": [
+        {
+            "id": "d473d2f0-e1c4-4c68-b34c-c6d4480e02a0",
+            "name": "Burger",
+            "category": "Main",
+            "price": 10.99,
+            "stock": 20,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "71c640ff-75b1-477f-867b-c74ea54a667d",
+            "name": "Fries",
+            "category": "Side",
+            "price": 3.99,
+            "stock": 30,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "2b880f5a-b9fa-4ff9-9f6f-b9cd20b69e3d",
+            "name": "Coke",
+            "category": "Drink",
+            "price": 2.99,
+            "stock": 50,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "d582fc90-6c73-4298-851e-c3817728a727",
+            "name": "Pizza",
+            "category": "Main",
+            "price": 12.99,
+            "stock": 15,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "235195db-7ba8-4272-8679-3c42915d0804",
+            "name": "Salad",
+            "category": "Side",
+            "price": 5.99,
+            "stock": 10,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "aef1c03c-11e8-406d-9c88-60efc86a1848",
+            "name": "Water",
+            "category": "Drink",
+            "price": 1.99,
+            "stock": 100,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "4b868420-00fe-4a0d-a67d-b8f43a44f650",
+            "name": "Ice Cream",
+            "category": "Dessert",
+            "price": 4.99,
+            "stock": 25,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "46a46ca2-a1f7-47ad-8cfa-dafe807a8c66",
+            "name": "Pasta",
+            "category": "Main",
+            "price": 11.99,
+            "stock": 18,
+            "restaurant_id": "d9beb2c2-0eca-4305-8dab-721af942e329"
+        },
+        {
+            "id": "a65dcfc9-9026-4a34-85be-083cc70c1e12",
+            "name": "Zinger burger ",
+            "category": "Fast food ",
+            "price": 300.0,
+            "stock": 10,
+            "restaurant_id": "cd67ee2e-8fed-4e68-9cac-c97ef93a7dce"
+        },
+        {
+            "id": "b1a6acbb-5e13-43b4-aa94-f9525167a023",
+            "name": "Pizza ",
+            "category": "Fast food ",
+            "price": 600.0,
+            "stock": 12,
+            "restaurant_id": "cd67ee2e-8fed-4e68-9cac-c97ef93a7dce"
+        },
+        {
+            "id": "b838343b-8317-44c3-9dc1-0bd6c0f53a46",
+            "name": "Zinger burger ",
+            "category": "Fast food ",
+            "price": 300.0,
+            "stock": 10,
+            "restaurant_id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a"
+        },
+        {
+            "id": "a1033bbe-d8ff-4892-b898-38eaa42aa820",
+            "name": "Latin pizza ",
+            "category": "Fast food ",
+            "price": 600.0,
+            "stock": 12,
+            "restaurant_id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a"
+        },
+        {
+            "id": "bbf057e7-d706-424a-817e-9886efda7b68",
+            "name": "Zinger ",
+            "category": "Burger ",
+            "price": 150.0,
+            "stock": 5,
+            "restaurant_id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a"
+        }
+    ]
+}

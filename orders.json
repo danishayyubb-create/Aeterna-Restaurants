@@ -1,0 +1,22 @@
+{
+    "orders": [
+        {
+            "id": "82ee9a41-b7cf-4208-8057-b420d0155b6b",
+            "restaurant_id": "20721aa5-184b-4b33-9e61-bb2d76a14c7a",
+            "customer": "WhatsApp User",
+            "items": [
+                {
+                    "id": "fef16821-5d1d-4139-a64a-8d935942be3c",
+                    "name": "Zinger burger ",
+                    "price": 300.0,
+                    "quantity": 1
+                }
+            ],
+            "total": 300.0,
+            "timestamp": "2026-03-08T00:51:05.061685",
+            "status": "received",
+            "ready": false,
+            "ready_time": null
+        }
+    ]
+}
