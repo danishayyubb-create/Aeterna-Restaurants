@@ -311,66 +311,73 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ------------------------------
+# Sidebar authentication for admin/managers
+# ------------------------------
 if not st.session_state.logged_in:
-    st.title("Aeterna Resto AI - Login")
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
-    with tab1:
-        username = st.text_input("Username", key='login_username')
-        password = st.text_input("Password", type="password", key='login_password')
-        if st.button("Login"):
-            user_found = False
-            for user in users_data["users"]:
-                if user["username"] == username:
-                    user_found = True
-                    entered_hash = hashlib.sha256((user["salt"] + password).encode()).hexdigest()
-                    if entered_hash == user["password_hash"]:
-                        st.session_state.logged_in = True
-                        st.session_state.user = username
-                        st.session_state.role = user["role"]
-                        st.session_state.restaurant_id = user["restaurant_id"]
-                        st.success("Logged in successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid password")
-                    break
-            if not user_found:
-                st.error("User not found")
-    with tab2:
-        restaurant_name = st.text_input("Restaurant Name", key='signup_restaurant_name')
-        theme = st.text_input("Theme", value="dark", key='signup_theme')
-        logo_url = st.text_input("Logo URL", value="", key='signup_logo_url')
-        username = st.text_input("Manager Username", key='signup_username')
-        password = st.text_input("Password", type="password", key='signup_password')
-        confirm_password = st.text_input("Confirm Password", type="password", key='signup_confirm_password')
-        if st.button("Sign Up"):
-            if password != confirm_password:
-                st.error("Passwords do not match")
-            elif any(u["username"] == username for u in users_data["users"]):
-                st.error("Username already exists")
-            elif any(r["name"] == restaurant_name for r in restaurants_data["restaurants"]):
-                st.error("Restaurant name already exists")
-            elif not restaurant_name or not username:
-                st.error("Restaurant name and username are required")
-            else:
-                restaurant_id = str(uuid.uuid4())
-                restaurants_data["restaurants"].append({
-                    "id": restaurant_id,
-                    "name": restaurant_name,
-                    "theme": theme,
-                    "logo_url": logo_url
-                })
-                save_restaurants(restaurants_data)
-                hash_val, salt = hash_password(password)
-                users_data["users"].append({
-                    "username": username,
-                    "password_hash": hash_val,
-                    "salt": salt,
-                    "role": "manager",
-                    "restaurant_id": restaurant_id
-                })
-                save_users(users_data)
-                st.success("Sign up successful! Please login.")
-else:
+    with st.sidebar.expander("Admin / Manager Login", expanded=True):
+        tab1, tab2 = st.tabs(["Login", "Sign Up"])
+        with tab1:
+            username = st.text_input("Username", key='login_username')
+            password = st.text_input("Password", type="password", key='login_password')
+            if st.button("Login"):
+                user_found = False
+                for user in users_data["users"]:
+                    if user["username"] == username:
+                        user_found = True
+                        entered_hash = hashlib.sha256((user["salt"] + password).encode()).hexdigest()
+                        if entered_hash == user["password_hash"]:
+                            st.session_state.logged_in = True
+                            st.session_state.user = username
+                            st.session_state.role = user["role"]
+                            st.session_state.restaurant_id = user["restaurant_id"]
+                            st.success("Logged in successfully!")
+                            st.rerun()
+                        else:
+                            st.error("Invalid password")
+                        break
+                if not user_found:
+                    st.error("User not found")
+        with tab2:
+            restaurant_name = st.text_input("Restaurant Name", key='signup_restaurant_name')
+            theme = st.text_input("Theme", value="dark", key='signup_theme')
+            logo_url = st.text_input("Logo URL", value="", key='signup_logo_url')
+            username = st.text_input("Manager Username", key='signup_username')
+            password = st.text_input("Password", type="password", key='signup_password')
+            confirm_password = st.text_input("Confirm Password", type="password", key='signup_confirm_password')
+            if st.button("Sign Up"):
+                if password != confirm_password:
+                    st.error("Passwords do not match")
+                elif any(u["username"] == username for u in users_data["users"]):
+                    st.error("Username already exists")
+                elif any(r["name"] == restaurant_name for r in restaurants_data["restaurants"]):
+                    st.error("Restaurant name already exists")
+                elif not restaurant_name or not username:
+                    st.error("Restaurant name and username are required")
+                else:
+                    restaurant_id = str(uuid.uuid4())
+                    restaurants_data["restaurants"].append({
+                        "id": restaurant_id,
+                        "name": restaurant_name,
+                        "theme": theme,
+                        "logo_url": logo_url
+                    })
+                    save_restaurants(restaurants_data)
+                    hash_val, salt = hash_password(password)
+                    users_data["users"].append({
+                        "username": username,
+                        "password_hash": hash_val,
+                        "salt": salt,
+                        "role": "manager",
+                        "restaurant_id": restaurant_id
+                    })
+                    save_users(users_data)
+                    st.success("Sign up successful! Please login.")
+
+# ------------------------------
+# Main content selection
+# ------------------------------
+if st.session_state.logged_in:
     st.sidebar.title(f"Welcome, {st.session_state.user}")
     if st.session_state.role == "admin":
         page = st.sidebar.radio("Navigation", ["Dashboard", "WhatsApp Simulation", "Kitchen View", "Orders View", "Admin Panel"])
@@ -600,4 +607,28 @@ else:
         st.session_state.user = None
         st.session_state.role = None
         st.session_state.restaurant_id = None
+        st.rerun()
+else:
+    # public visitor chatbot (no login required)
+    restaurant_id = default_restaurant_id
+    restaurant_name = get_restaurant_name(restaurant_id)
+    st.title(f"Chatbot - {restaurant_name}")
+    # initialize guest chat state
+    if f'chat_messages_{restaurant_id}' not in st.session_state:
+        st.session_state[f'chat_messages_{restaurant_id}'] = []
+    if f'order_in_progress_{restaurant_id}' not in st.session_state:
+        st.session_state[f'order_in_progress_{restaurant_id}'] = []
+    # display previous messages
+    for message in st.session_state[f'chat_messages_{restaurant_id}']:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+    # input handling
+    if prompt := st.chat_input("Type your message...", key=f'chat_input_{restaurant_id}'):
+        st.session_state[f'chat_messages_{restaurant_id}'].append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        response = generate_ai_response(prompt, restaurant_name, inventory_data, restaurant_id, st.session_state[f'order_in_progress_{restaurant_id}'], st.session_state[f'chat_messages_{restaurant_id}'])
+        st.session_state[f'chat_messages_{restaurant_id}'].append({"role": "assistant", "content": response})
+        with st.chat_message("assistant"):
+            st.markdown(response)
         st.rerun()
