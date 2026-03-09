@@ -59,11 +59,10 @@ def save_orders(data):
     with open('orders.json', 'w') as f:
         json.dump(data, f, indent=4)
 
-def get_restaurant_name(restaurant_id):
-    for r in restaurants_data["restaurants"]:
-        if r["id"] == restaurant_id:
-            return r["name"]
-    return "Unknown"
+def send_status_update(message, restaurant_id):
+    """Send status update to customer's chat (simulating WhatsApp)"""
+    if f'chat_messages_{restaurant_id}' in st.session_state:
+        st.session_state[f'chat_messages_{restaurant_id}'].append({"role": "assistant", "content": message})
 
 # ================================
 # AI RESPONSE GENERATION
@@ -103,9 +102,11 @@ def generate_ai_response(user_message, restaurant_name, inventory_data, restaura
                         "items": order_in_progress.copy(),
                         "total": round(total, 2),
                         "timestamp": datetime.now().isoformat(),
-                        "status": "received",
+                        "status": "confirmed",
                         "ready": False,
-                        "ready_time": None
+                        "ready_time": None,
+                        "chef_time": None,
+                        "rider_status": None
                     }
                     orders_data["orders"].append(order)
                     save_orders(orders_data)
@@ -132,9 +133,11 @@ def generate_ai_response(user_message, restaurant_name, inventory_data, restaura
                     "items": order_in_progress.copy(),
                     "total": round(total, 2),
                     "timestamp": datetime.now().isoformat(),
-                    "status": "received",
+                    "status": "confirmed",
                     "ready": False,
-                    "ready_time": None
+                    "ready_time": None,
+                    "chef_time": None,
+                    "rider_status": None
                 }
                 orders_data["orders"].append(order)
                 save_orders(orders_data)
@@ -420,31 +423,37 @@ if st.session_state.logged_in:
             selected_restaurant = st.selectbox("Select Restaurant", [r['name'] for r in restaurants_data["restaurants"]], key='admin_kitchen_select')
             restaurant = next(r for r in restaurants_data["restaurants"] if r['name'] == selected_restaurant)
             restaurant_id = restaurant['id']
-            pending_orders = [o for o in orders_data["orders"] if o["restaurant_id"] == restaurant_id and not o.get("ready", False)]
-            if pending_orders:
-                for order in pending_orders:
-                    with st.expander(f"Order #{order['id']} - {order['timestamp']}"):
+            confirmed_orders = [o for o in orders_data["orders"] if o["restaurant_id"] == restaurant_id and o.get("status") == "confirmed"]
+            if confirmed_orders:
+                for order in confirmed_orders:
+                    with st.expander(f"Order #{order['id']} - {order['timestamp']} - Status: {order.get('status', 'Unknown')}"):
                         st.write(f"Customer: {order['customer']}")
                         st.write("Items:")
                         for item in order['items']:
                             st.write(f"- {item['name']} x{item['quantity']} - ${item['price'] * item['quantity']}")
                         st.write(f"Total: ${order['total']}")
                         if st.button("Mark as Ready", key=f"ready_{order['id']}"):
-                            order["ready"] = True
+                            order["status"] = "ready"
                             order["ready_time"] = datetime.now().isoformat()
                             save_orders(orders_data)
+                            send_status_update("✅ Your order is ready for pickup!", restaurant_id)
                             st.success("Order marked as ready!")
                             st.rerun()
             else:
-                st.write("No pending orders.")
+                st.write("No confirmed orders.")
         elif page == "Orders View":
             st.title("All Orders")
             if orders_data["orders"]:
                 for order in orders_data["orders"]:
                     restaurant_name = get_restaurant_name(order["restaurant_id"])
-                    with st.expander(f"Order #{order['id']} - {restaurant_name} - {order['timestamp']}"):
+                    status = order.get('status', 'Unknown')
+                    with st.expander(f"Order #{order['id']} - {restaurant_name} - {order['timestamp']} - Status: {status}"):
                         st.write(f"Customer: {order['customer']}")
-                        st.write(f"Status: {'Ready' if order.get('ready', False) else 'Pending'}")
+                        st.write(f"Status: {status}")
+                        if order.get('chef_time'):
+                            st.write(f"Chef Time: {order['chef_time']} mins")
+                        if order.get('rider_status'):
+                            st.write(f"Rider Status: {order['rider_status']}")
                         st.write("Items:")
                         for item in order['items']:
                             st.write(f"- {item['name']} x{item['quantity']} - ${item['price'] * item['quantity']:.2f}")
@@ -457,7 +466,76 @@ if st.session_state.logged_in:
             st.title("Admin Panel")
             password = st.text_input("Enter Admin Password", type="password", key="admin_password")
             if password == "admin123":
-                st.subheader("All Orders")
+                tab1, tab2 = st.tabs(["Chef Dashboard", "Rider Panel"])
+                
+                with tab1:
+                    st.subheader("Chef Interactive Dashboard")
+                    confirmed_orders = [o for o in orders_data["orders"] if o.get("status") == "confirmed"]
+                    if confirmed_orders:
+                        for order in confirmed_orders:
+                            with st.expander(f"Order #{order['id']} - {order['timestamp']} - Status: {order.get('status', 'Unknown')}"):
+                                st.write(f"Customer: {order['customer']}")
+                                st.write("Items:")
+                                for item in order['items']:
+                                    st.write(f"- {item['name']} x{item['quantity']} - ${item['price'] * item['quantity']:.2f}")
+                                st.write(f"Total: ${order['total']:.2f}")
+                                
+                                # Chef Actions
+                                col1, col2, col3 = st.columns([2, 2, 2])
+                                with col1:
+                                    chef_time = st.selectbox("Preparation Time (mins)", [15, 30, 45], key=f"chef_time_{order['id']}", index=1)
+                                with col2:
+                                    if st.button("Notify Customer", key=f"notify_{order['id']}"):
+                                        order["chef_time"] = chef_time
+                                        order["status"] = "preparing"
+                                        save_orders(orders_data)
+                                        send_status_update(f"👨‍🍳 Chef says your order will be ready in {chef_time} minutes!", order["restaurant_id"])
+                                        st.success(f"Notified customer: {chef_time} mins")
+                                        st.rerun()
+                                with col3:
+                                    if st.button("Order Ready", key=f"ready_{order['id']}"):
+                                        order["status"] = "ready"
+                                        order["ready_time"] = datetime.now().isoformat()
+                                        save_orders(orders_data)
+                                        send_status_update("✅ Your order is ready for pickup!", order["restaurant_id"])
+                                        st.success("Order marked as ready!")
+                                        st.rerun()
+                    else:
+                        st.write("No confirmed orders.")
+                
+                with tab2:
+                    st.subheader("Rider & Delivery Panel")
+                    ready_orders = [o for o in orders_data["orders"] if o.get("status") == "ready"]
+                    if ready_orders:
+                        for order in ready_orders:
+                            with st.expander(f"Order #{order['id']} - {order['timestamp']} - Status: {order.get('status', 'Unknown')}"):
+                                st.write(f"Customer: {order['customer']}")
+                                st.write("Items:")
+                                for item in order['items']:
+                                    st.write(f"- {item['name']} x{item['quantity']} - ${item['price'] * item['quantity']:.2f}")
+                                st.write(f"Total: ${order['total']:.2f}")
+                                
+                                # Rider Actions
+                                col1, col2 = st.columns(2)
+                                with col1:
+                                    if st.button("Picked Up", key=f"picked_{order['id']}"):
+                                        order["rider_status"] = "picked_up"
+                                        save_orders(orders_data)
+                                        send_status_update("🚴 Rider is on the way with your order!", order["restaurant_id"])
+                                        st.success("Order picked up!")
+                                        st.rerun()
+                                with col2:
+                                    if st.button("Delivered", key=f"delivered_{order['id']}"):
+                                        order["status"] = "delivered"
+                                        order["rider_status"] = "delivered"
+                                        save_orders(orders_data)
+                                        send_status_update("🎉 Your order has been delivered! Please rate your experience (1-5 stars).", order["restaurant_id"])
+                                        st.success("Order delivered!")
+                                        st.rerun()
+                    else:
+                        st.write("No ready orders for delivery.")
+                
+                st.subheader("All Orders Summary")
                 if orders_data["orders"]:
                     table_data = []
                     for order in orders_data["orders"]:
@@ -465,6 +543,9 @@ if st.session_state.logged_in:
                         table_data.append({
                             "Order ID": order['id'],
                             "Timestamp": order['timestamp'],
+                            "Status": order.get('status', 'Unknown'),
+                            "Chef Time": order.get('chef_time', 'N/A'),
+                            "Rider Status": order.get('rider_status', 'N/A'),
                             "Items": items_str,
                             "Total Price": f"${order['total']:.2f}",
                             "Customer Phone Number": order['customer']
@@ -523,23 +604,24 @@ if st.session_state.logged_in:
                 st.rerun()
         elif page == "Kitchen View":
             st.title(f"Kitchen View - {restaurant_name}")
-            pending_orders = [o for o in orders_data["orders"] if o["restaurant_id"] == restaurant_id and not o.get("ready", False)]
-            if pending_orders:
-                for order in pending_orders:
-                    with st.expander(f"Order #{order['id']} - {order['timestamp']}"):
+            confirmed_orders = [o for o in orders_data["orders"] if o["restaurant_id"] == restaurant_id and o.get("status") == "confirmed"]
+            if confirmed_orders:
+                for order in confirmed_orders:
+                    with st.expander(f"Order #{order['id']} - {order['timestamp']} - Status: {order.get('status', 'Unknown')}"):
                         st.write(f"Customer: {order['customer']}")
                         st.write("Items:")
                         for item in order['items']:
                             st.write(f"- {item['name']} x{item['quantity']} - ${item['price'] * item['quantity']}")
                         st.write(f"Total: ${order['total']}")
                         if st.button("Mark as Ready", key=f"ready_{order['id']}"):
-                            order["ready"] = True
+                            order["status"] = "ready"
                             order["ready_time"] = datetime.now().isoformat()
                             save_orders(orders_data)
+                            send_status_update("✅ Your order is ready for pickup!", restaurant_id)
                             st.success("Order marked as ready!")
                             st.rerun()
             else:
-                st.write("No pending orders.")
+                st.write("No confirmed orders.")
         elif page == "Manage Menu":
             st.title(f"Manage Menu - {restaurant_name}")
             with st.form("add_item"):
