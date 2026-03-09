@@ -39,6 +39,17 @@ def save_restaurants(data):
     with open('restaurants.json', 'w') as f:
         json.dump(data, f, indent=4)
 
+def get_restaurant_name(restaurant_id):
+    """Return the name of a restaurant given its ID.
+    Falls back to a placeholder if the ID isn't found.
+    """
+    # restaurants_data will be initialized later, but that's fine as
+    # the function is only called after loading.
+    for r in restaurants_data.get("restaurants", []):
+        if r["id"] == restaurant_id:
+            return r["name"]
+    return "Unknown Restaurant"
+
 def load_inventory():
     if os.path.exists('inventory.json'):
         with open('inventory.json', 'r') as f:
