@@ -1,0 +1,458 @@
+from __future__ import annotations
+
+import pathlib
+import warnings
+
+"""This module contains the types related to messages."""
+
+__all__ = ["Message"]
+
+import dataclasses
+import datetime
+from typing import TYPE_CHECKING, ClassVar, Iterable
+
+from ..errors import WhatsAppError
+from .base_update import BaseUserUpdate, RawUpdate  # noqa
+from .callback import Button, FlowButton, SectionList, URLButton, VoiceCallButton
+from .media import Audio, Document, Image, Sticker, Video
+from .others import (
+    Contact,
+    Location,
+    MessageType,
+    Metadata,
+    Order,
+    ProductsSection,
+    Reaction,
+    Referral,
+    ReplyToMessage,
+    Unsupported,
+)
+
+if TYPE_CHECKING:
+    from ..client import WhatsApp
+    from .sent_update import SentMessage
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Message(BaseUserUpdate):
+    """
+    A message received from a user.
+
+    - `'Message' on developers.facebook.com <https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks/components#messages-object>`_
+
+    Attributes:
+        id: The message ID (If you want to reply to the message, use ``message_id_to_reply`` instead).
+        metadata: The metadata of the message (to which phone number it was sent).
+        type: The message type (See :class:`MessageType`).
+        from_user: The user who sent the message.
+        timestamp: The timestamp when the message was arrived to WhatsApp servers (in UTC).
+        reply_to_message: The message to which this message is a reply (if any).
+        forwarded: Whether the message was forwarded.
+        forwarded_many_times: Whether the message was forwarded more than 5 times. (when ``True``, ``forwarded`` will be ``True`` as well)
+        text: The text of the message.
+        image: The image of the message.
+        video: The video of the message.
+        sticker: The sticker of the message.
+        document: The document of the message.
+        audio: The audio of the message.
+        voice: The voice note of the message (shorthand for ``audio`` if it's a voice note).
+        caption: The caption of the message (Optional, only available for image video and document messages).
+        reaction: The reaction of the message.
+        location: The location of the message.
+        contacts: The contacts of the message.
+        order: The order of the message.
+        referral: The referral information of the message (When a customer clicks an ad that redirects to WhatsApp).
+        unsupported: The unsupported content of the message.
+        error: The error of the message.
+        shared_data: Shared data between handlers.
+    """
+
+    type: MessageType
+    reply_to_message: ReplyToMessage | None
+    forwarded: bool
+    forwarded_many_times: bool
+    text: str | None = None
+    image: Image | None = None
+    video: Video | None = None
+    sticker: Sticker | None = None
+    document: Document | None = None
+    audio: Audio | None = None
+    caption: str | None = None
+    reaction: Reaction | None = None
+    location: Location | None = None
+    contacts: tuple[Contact, ...] | None = None
+    order: Order | None = None
+    referral: Referral | None = None
+    unsupported: Unsupported | None = None
+    error: WhatsAppError | None = None
+
+    _media_objs: ClassVar[dict] = {
+        "image": Image,
+        "video": Video,
+        "sticker": Sticker,
+        "document": Document,
+        "audio": Audio,
+    }
+    _txt_fields = ("text", "caption")
+    _webhook_field = "messages"
+
+    @property
+    def system(self) -> None:
+        """Backwards compatibility for the ``system`` attr."""
+        warnings.warn(
+            "The `system` property is deprecated and will be removed in a future version. "
+            "Listen to `PhoneNumberChange` and `IdentityChange` updates instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return None
+
+    @property
+    def voice(self) -> Audio | None:
+        """Shorthand for the ``audio`` attribute, only if it's a voice note."""
+        if self.audio and self.audio.voice:
+            return self.audio
+        return None
+
+    @property
+    def message_id_to_reply(self) -> str:
+        """The ID of the message to reply to."""
+        return (
+            self.id if self.type != MessageType.REACTION else self.reaction.message_id
+        )
+
+    @property
+    def has_media(self) -> bool:
+        """
+        Whether the message has any media. (image, video, sticker, document or audio)
+
+        - If you want to get the media of the message, use :attr:`~Message.media` instead.
+        """
+        return self.media is not None
+
+    @property
+    def is_reply(self) -> bool:
+        """
+        Whether the message is a reply to another message.
+
+        - Reaction messages are also considered as replies (But ``.reply_to_message`` will be ``None``).
+        """
+        return self.reply_to_message is not None or self.reaction is not None
+
+    @classmethod
+    def _resolve_msg_content(
+        cls,
+        *,
+        client: WhatsApp,
+        msg_type: MessageType,
+        msg: dict,
+        timestamp: datetime.datetime,
+        recipient: str,
+    ) -> dict:
+        match msg_type:
+            case MessageType.TEXT:
+                return {msg_type.value: msg[msg_type.value]["body"]}
+            case (
+                MessageType.IMAGE
+                | MessageType.VIDEO
+                | MessageType.STICKER
+                | MessageType.DOCUMENT
+                | MessageType.AUDIO
+            ):
+                return {
+                    msg_type.value: cls._media_objs[msg_type.value].from_dict(
+                        client=client,
+                        data=msg[msg_type.value],
+                        arrived_at=timestamp,
+                        received_to=recipient,
+                    )
+                }
+            case MessageType.REACTION:
+                return {msg_type.value: Reaction.from_dict(msg[msg_type.value])}
+            case MessageType.LOCATION:
+                return {msg_type.value: Location.from_dict(msg[msg_type.value])}
+            case MessageType.CONTACTS:
+                return {
+                    msg_type.value: tuple(
+                        Contact.from_dict(c) for c in msg[msg_type.value]
+                    )
+                }
+            case MessageType.ORDER:
+                return {msg_type.value: Order.from_dict(msg[msg_type.value])}
+            case MessageType.UNSUPPORTED:
+                return (
+                    {msg_type.value: Unsupported(type=msg["unsupported"]["type"])}
+                    if "unsupported" in msg
+                    else {}
+                )
+            case _:
+                return {}
+
+    @classmethod
+    def from_update(cls, client: WhatsApp, update: RawUpdate) -> Message:
+        msg = (value := (entry := update["entry"][0])["changes"][0]["value"])[
+            "messages"
+        ][0]
+        error = value.get("errors", msg.get("errors", (None,)))[0]
+        msg_type = msg["type"]
+        context = msg.get("context", {})
+        metadata = Metadata.from_dict(value["metadata"])
+        timestamp = datetime.datetime.fromtimestamp(
+            int(msg["timestamp"]),
+            datetime.timezone.utc,
+        )
+        msg_type = MessageType(msg_type)
+        msg_content = cls._resolve_msg_content(
+            client=client,
+            msg_type=msg_type,
+            msg=msg,
+            timestamp=timestamp,
+            recipient=metadata.phone_number_id,
+        )
+        try:
+            usr = client._usr_cls.from_dict(value["contacts"][0], client=client)
+        except KeyError:
+            usr = client._usr_cls(
+                wa_id=msg["from"], name=None, _client=client
+            )  # some messages don't have contacts
+        return cls(
+            _client=client,
+            raw=update,
+            waba_id=entry["id"],
+            id=msg["id"],
+            type=msg_type,
+            **msg_content,
+            from_user=usr,
+            timestamp=timestamp,
+            metadata=metadata,
+            forwarded=context.get("forwarded", False)
+            or context.get("frequently_forwarded", False),
+            forwarded_many_times=context.get("frequently_forwarded", False),
+            reply_to_message=ReplyToMessage.from_dict(context)
+            if context.get("id")
+            else None,
+            caption=msg.get(msg_type, {}).get("caption")
+            if msg_type in cls._media_objs
+            else None,
+            referral=Referral.from_dict(msg["referral"]) if "referral" in msg else None,
+            error=WhatsAppError.from_dict(error=error) if error is not None else None,
+        )
+
+    @property
+    def media(
+        self,
+    ) -> Image | Video | Sticker | Document | Audio | None:
+        """
+        The media of the message, if any, otherwise ``None``. (image, video, sticker, document or audio)
+
+        - If you want to check whether the message has any media, use :attr:`~Message.has_media` instead.
+        """
+        return next(
+            (
+                getattr(self, media_type)
+                for media_type in self._media_objs
+                if getattr(self, media_type)
+            ),
+            None,
+        )
+
+    def download_media(
+        self,
+        filepath: str | None = None,
+        filename: str | None = None,
+        in_memory: None = False,
+        *,
+        chunk_size: int | None = None,
+        **httpx_kwargs,
+    ) -> pathlib.Path:
+        """
+        Download a media file from WhatsApp servers (image, video, sticker, document or audio).
+
+        - Shortcut for ``message.media.download(...)``, ``message.image.download(...)`` etc.
+        - Use :py:func:`~pywa.client.WhatsApp.get_media_bytes` or :py:func:`~pywa.client.WhatsApp.stream_media` instead of ``in_memory=True``.
+
+        Args:
+            filepath: The path where to save the file (if not provided, the current working directory will be used).
+            filename: The name of the file to save (if not provided, it will be extracted from the ``Content-Disposition`` header or a SHA256 hash of the URL will be used).
+            chunk_size: The size (in bytes) of each chunk to read when downloading the media (default: ``64KB``).
+            in_memory: Deprecated: Use :py:func:`~pywa.client.WhatsApp.get_media_bytes` or :py:func:`~pywa.client.WhatsApp.stream_media` instead. If True, the file will be returned as bytes instead of being saved to disk.
+            **httpx_kwargs: Additional arguments to pass to ``httpx.get(...)``.
+
+        Returns:
+            The path of the saved file if ``in_memory`` is False, the file as bytes otherwise.
+
+        Raises:
+            ValueError: If the message does not contain any media.
+        """
+        try:
+            return self.media.download(
+                path=filepath,
+                filename=filename,
+                in_memory=in_memory,
+                chunk_size=chunk_size,
+                **httpx_kwargs,
+            )
+        except AttributeError:
+            raise ValueError("Message does not contain any media.") from None
+
+    def copy(
+        self,
+        to: str,
+        header: str | None = None,
+        body: str | None = None,
+        footer: str | None = None,
+        buttons: (
+            Iterable[Button]
+            | URLButton
+            | VoiceCallButton
+            | FlowButton
+            | SectionList
+            | None
+        ) = None,
+        preview_url: bool = False,
+        reply_to_message_id: str = None,
+        tracker: str | None = None,
+        sender: str | int | None = None,
+    ) -> SentMessage:
+        """
+        Send the message to another user.
+
+            - The WhatsApp Cloud API does not offer a `real` forward option, so this method will send a new message with the same content as the original message.
+            - Supported message types: ``TEXT``, ``DOCUMENT``, ``IMAGE``, ``VIDEO``, ``STICKER``, ``LOCATION``, ``AUDIO``, ``CONTACTS``, ``ORDER`` and ``SYSTEM``.
+            - If the message type is ``reaction``, you must provide ``reply_to_message_id``.
+
+        Args:
+            to: The phone ID of the WhatsApp user to copy the message to.
+            header: The header of the message (if keyboard is provided, optional, up to 60 characters, no markdown allowed).
+            body: The body/caption of the message (if buttons are provided, optional, up to 1024 characters, markdown allowed).
+            footer: The footer of the message (if buttons is provided, optional, markdown has no effect).
+            buttons: The buttons to send with the message (only in case of message from type ``text``, ``document``,
+             ``video`` and ``image``. also, the ``SectionList`` is only available to ``text`` type)
+            reply_to_message_id:  The message ID to reply to (optional).
+            preview_url: Whether to show a preview of the URL in the message (if any).
+            tracker: The track data of the message.
+            sender: The phone ID to send the message from (optional, overrides the client's phone ID).
+
+        Returns:
+            The sent message.
+
+        Raises:
+            ValueError: If the message type is ``reaction`` and no ``reply_to_message_id`` is provided, or if the message
+             type is ``unsupported``.
+        """
+        match self.type:
+            case MessageType.TEXT:
+                return self._client.send_message(
+                    sender=sender,
+                    to=to,
+                    text=self.text,
+                    preview_url=preview_url,
+                    header=header,
+                    footer=footer,
+                    buttons=buttons,
+                    reply_to_message_id=reply_to_message_id,
+                    tracker=tracker,
+                )
+            case MessageType.DOCUMENT:
+                return self._client.send_document(
+                    sender=sender,
+                    to=to,
+                    document=self.document.id,
+                    filename=self.document.filename,
+                    caption=body or self.caption,
+                    buttons=buttons,
+                    footer=footer,
+                    reply_to_message_id=reply_to_message_id,
+                    tracker=tracker,
+                )
+            case MessageType.IMAGE:
+                return self._client.send_image(
+                    sender=sender,
+                    to=to,
+                    image=self.image.id,
+                    caption=body or self.caption,
+                    buttons=buttons,
+                    footer=footer,
+                    reply_to_message_id=reply_to_message_id,
+                    tracker=tracker,
+                )
+            case MessageType.VIDEO:
+                return self._client.send_video(
+                    sender=sender,
+                    to=to,
+                    video=self.video.id,
+                    caption=body or self.caption,
+                    buttons=buttons,
+                    footer=footer,
+                    reply_to_message_id=reply_to_message_id,
+                    tracker=tracker,
+                )
+            case MessageType.STICKER:
+                return self._client.send_sticker(
+                    sender=sender, to=to, sticker=self.sticker.id, tracker=tracker
+                )
+            case MessageType.LOCATION:
+                return self._client.send_location(
+                    sender=sender,
+                    to=to,
+                    latitude=self.location.latitude,
+                    longitude=self.location.longitude,
+                    name=self.location.name,
+                    address=self.location.address,
+                    tracker=tracker,
+                )
+            case MessageType.AUDIO:
+                return self._client.send_audio(
+                    sender=sender,
+                    to=to,
+                    audio=self.audio.id,
+                    tracker=tracker,
+                    is_voice=self.audio.voice,
+                )
+            case MessageType.CONTACTS:
+                return self._client.send_contact(
+                    sender=sender,
+                    to=to,
+                    contact=self.contacts,
+                    reply_to_message_id=reply_to_message_id,
+                    tracker=tracker,
+                )
+            case MessageType.REACTION:
+                if reply_to_message_id is None:
+                    raise ValueError(
+                        "You need to provide `reply_to_message_id` in order to `copy` a reaction"
+                    )
+                return self._client.send_reaction(
+                    sender=sender,
+                    to=to,
+                    message_id=reply_to_message_id,
+                    emoji=self.reaction.emoji or "",
+                )
+            case MessageType.ORDER:
+                if len(self.order.products) == 1:
+                    return self._client.send_product(
+                        sender=sender,
+                        to=to,
+                        catalog_id=self.order.catalog_id,
+                        sku=self.order.products[0].sku,
+                        body=body,
+                        footer=footer,
+                        reply_to_message_id=reply_to_message_id,
+                    )
+                return self._client.send_products(
+                    sender=sender,
+                    to=to,
+                    catalog_id=self.order.catalog_id,
+                    product_sections=(
+                        ProductsSection(
+                            title=header,
+                            skus=(p.sku for p in self.order.products),
+                        ),
+                    ),
+                    title=header,
+                    body=body,
+                    footer=footer,
+                    reply_to_message_id=reply_to_message_id,
+                )
+            case _:
+                raise ValueError(f"Message of type {self.type} cannot be copied.")
