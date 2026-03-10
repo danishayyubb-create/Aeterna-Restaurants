@@ -147,17 +147,27 @@ def handle_message():
 @app.route('/qr')
 def qr_code():
     """Display QR code for WhatsApp setup"""
-    # Generate QR code for the phone number
-    qr = qrcode.QRCode(version=1, box_size=10, border=5)
-    qr.add_data("whatsapp://send?phone=03703795149")
-    qr.make(fit=True)
-    
-    img = qr.make_image(fill='black', back_color='white')
-    buf = BytesIO()
-    img.save(buf, format='PNG')
-    buf.seek(0)
-    
-    return buf.getvalue(), 200, {'Content-Type': 'image/png'}
+    try:
+        # Try to get the actual QR code from WhatsApp API
+        qr_data = wa.get_qr_code()
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        img = qr.make_image(fill='black', back_color='white')
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return buf.getvalue(), 200, {'Content-Type': 'image/png'}
+    except Exception as e:
+        # Fallback to static QR if API not configured
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data("whatsapp://send?phone=03703795149")
+        qr.make(fit=True)
+        img = qr.make_image(fill='black', back_color='white')
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return buf.getvalue(), 200, {'Content-Type': 'image/png'}
 
 def process_whatsapp_message(from_number, text):
     """Process WhatsApp message using existing AI logic"""
@@ -550,7 +560,7 @@ if not st.session_state.logged_in:
 if st.session_state.logged_in:
     st.sidebar.title(f"Welcome, {st.session_state.user}")
     if st.session_state.role == "admin":
-        page = st.sidebar.radio("Navigation", ["Dashboard", "WhatsApp Simulation", "Kitchen View", "Orders View", "Admin Panel", "QR Code"])
+        page = st.sidebar.radio("Navigation", ["Dashboard", "WhatsApp Simulation", "Kitchen View", "Orders View", "Admin Panel", "WhatsApp Link"])
         if page == "Dashboard":
             st.title("SaaS Super Admin Dashboard")
             st.write("Full access to all features")
@@ -728,8 +738,8 @@ if st.session_state.logged_in:
             else:
                 if password:
                     st.error("Incorrect password")
-        elif page == "QR Code":
-            st.title("WhatsApp QR Code Setup")
+        elif page == "WhatsApp Link":
+            st.title("WhatsApp Link Setup")
             st.write("Scan this QR code to link the WhatsApp number 03703795149 to our system:")
             st.image("http://localhost:5000/qr", caption="WhatsApp QR Code")
             st.write("After scanning, the number will be connected and ready to receive orders via WhatsApp.")
